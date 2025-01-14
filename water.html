@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Water storage visualization">
+    <title>Block Water Storage table</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --background-color: #ecf0f1;
+            --border-color: #bdc3c7;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-color);
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .visualization-controls {
+            margin: 2rem 0;
+        }
+
+        input[type="text"] {
+            padding: 0.5rem;
+            font-size: 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 4px;
+            width: 60%;
+            max-width: 400px;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            font-size: 1rem;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #34495e;
+        }
+
+        .grid-container {
+            overflow-x: auto;
+            margin: 2rem 0;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin: 0 auto;
+            min-width: 500px;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 12px;
+            text-align: center;
+            min-width: 40px;
+        }
+
+        th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+
+        .block {
+            background-color: var(--primary-color);
+        }
+
+        .water {
+            background-color: var(--secondary-color);
+            opacity: 0.7;
+        }
+
+        .result {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--primary-color);
+            margin-top: 2rem;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            input[type="text"] {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Block Water Storage Visualizer</h1>
+        <div class="visualization-controls">
+            <label for="heights">Block heights (comma-separated):</label><br>
+            <input type="text" id="heights" value="0,4,0,0,0,6,0,6,4,0" 
+                   placeholder="Enter values like: 0,4,0,0,0,6,0,6,4,0">
+            <button onclick="visualizeWaterStorage()">Visualize</button>
+        </div>
+        <div id="gridContainer" class="grid-container"></div>
+        <div id="result" class="result"></div>
+    </div>
+
+    <script>
+        function calculateWaterStorage(heights) {
+            const n = heights.length;
+            const leftMax = new Array(n).fill(0);
+            const rightMax = new Array(n).fill(0);
+            const waterLevels = new Array(n).fill(0);
+
+            leftMax[0] = heights[0];
+            for (let i = 1; i < n; i++) {
+                leftMax[i] = Math.max(leftMax[i - 1], heights[i]);
+            }
+
+            rightMax[n - 1] = heights[n - 1];
+            for (let i = n - 2; i >= 0; i--) {
+                rightMax[i] = Math.max(rightMax[i + 1], heights[i]);
+            }
+
+            // water storage
+            let totalWater = 0;
+            for (let i = 0; i < n; i++) {
+                const waterHeight = Math.min(leftMax[i], rightMax[i]);
+                if (waterHeight > heights[i]) {
+                    waterLevels[i] = waterHeight - heights[i];
+                    totalWater += waterLevels[i];
+                }
+            }
+
+            return { totalWater, waterLevels };
+        }
+
+        function createVisualizationGrid(heights, waterLevels) {
+            const maxHeight = Math.max(...heights) + Math.max(...waterLevels);
+            const table = document.createElement('table');
+            
+            const headerRow = document.createElement('tr');
+            for (let i = 0; i < heights.length; i++) {
+                const th = document.createElement('th');
+                th.textContent = i;
+                headerRow.appendChild(th);
+            }
+            table.appendChild(headerRow);
+
+            for (let row = maxHeight - 1; row >= 0; row--) {
+                const tr = document.createElement('tr');
+                for (let col = 0; col < heights.length; col++) {
+                    const td = document.createElement('td');
+                    if (row < heights[col]) {
+                        td.classList.add('block');
+                    } else if (row < heights[col] + waterLevels[col]) {
+                        td.classList.add('water');
+                    }
+                    tr.appendChild(td);
+                }
+                table.appendChild(tr);
+            }
+
+            return table;
+        }
+
+        function visualizeWaterStorage() {
+                const input = document.getElementById('heights').value;
+                const heights = input.split(',').map(num => {
+                    const val = parseInt(num.trim());
+                    if (isNaN(val) || val < 0) {
+                        throw new Error('Invalid input: Please enter non-negative integers');
+                    }
+                    return val;
+                });
+
+                if (heights.length < 3) {
+                    throw new Error('Please enter at least 3 values');
+                }
+
+                const { totalWater, waterLevels } = calculateWaterStorage(heights);
+                const gridContainer = document.getElementById('gridContainer');
+                const resultDiv = document.getElementById('result');
+
+                gridContainer.innerHTML = '';
+                gridContainer.appendChild(createVisualizationGrid(heights, waterLevels));
+                resultDiv.textContent = `Total water units trapped: ${totalWater}`;
+        }
+        document.addEventListener('DOMContentLoaded', visualizeWaterStorage);
+    </script>
+</div>
+</body>
+</html>
